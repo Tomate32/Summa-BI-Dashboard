@@ -7,6 +7,9 @@
 
 This repository contains an advanced Business Intelligence (BI) platform and an Executive Dashboard designed for SUMMA, an industrial supplies company. The project integrates real-time data visualization, predictive analytics, and an Artificial Intelligence assistant.
 
+> [!IMPORTANT]
+> **Data Privacy Disclaimer:** For safety and confidentiality reasons, this repository does not include real business data. The provided datasets are synthetic or anonymized exclusively for demonstration purposes.
+
 [View Live Demo (Vercel)](#)
 
 ---
@@ -75,8 +78,12 @@ If you upload your own CSV, the system is flexible with column names:
 <br/>
 <a name="spanish-version"></a>
 
-## Versión en Español
+##🚀 [Versión en Español](#spanish-version)
 
+> [!IMPORTANT]
+> **Aviso de Privacidad de Datos:** Por razones de confidencialidad y seguridad empresarial, este repositorio no incluye datos reales de la compañía. Los conjuntos de datos provistos son sintéticos o anonimizados exclusivamente para fines de demostración.
+
+---
 Plataforma avanzada de Business Intelligence (BI) y Dashboard Ejecutivo para la empresa SUMMA. Visualización interactiva, análisis de datos predictivo y asistente impulsado por IA.
 
 ---
