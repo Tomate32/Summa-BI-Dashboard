@@ -1,0 +1,7 @@
+*.py
+requirements.txt
+.env*
+docs/
+data/
+src/
+**/dist/

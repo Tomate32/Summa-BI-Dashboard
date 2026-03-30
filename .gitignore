@@ -1,0 +1,24 @@
+# Local secrets
+.env
+.env.*
+!.env.example
+
+# Local environments and generated outputs
+.venv_supabase/
+eda_output/
+eda_output_notebook/
+.ipynb_checkpoints/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# OS/editor noise
+.DS_Store
+.vscode/
+
+# Project sensitive data (EDA, scripts and datasets)
+docs/
+data/
+src/
+**/dist/

@@ -1,0 +1,1551 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Dashboard SUMMA Suministros Industriales</title>
+<link rel="icon" type="image/png" href="assets/favicon_summa.png">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg: #0b0f19;
+  --surface: rgba(30, 41, 59, 0.6);
+  --surface2: rgba(51, 65, 85, 0.5);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.15);
+  --text: #f8fafc;
+  --muted: #94a3b8;
+  --hint: #64748b;
+  --ok: #34d399;
+  --ok-bg: rgba(52, 211, 153, 0.15);
+  --bad: #f43f5e;
+  --bad-bg: rgba(244, 63, 94, 0.15);
+  --warn: #fbbf24;
+  --warn-bg: rgba(251, 191, 36, 0.15);
+  --info: #60a5fa;
+  --info-bg: rgba(96, 165, 250, 0.15);
+  --accent: #38bdf8;
+  --accent2: #ec4899;
+  --mono: 'DM Mono', monospace;
+  --sans: 'DM Sans', sans-serif;
+  --r: 10px;
+  --r-lg: 16px;
+  --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; }
+body { font-family: var(--sans); background: radial-gradient(circle at top, #1e293b 0%, #0f172a 50%, #020617 100%); color: var(--text); min-height: 100vh; -webkit-font-smoothing: antialiased; }
+.layout { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
+
+.sidebar {
+  background: var(--surface); border-right: 1px solid var(--border);
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  padding: 20px 16px; display: flex; flex-direction: column; gap: 0;
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+}
+.sidebar-logo { display: flex; align-items: center; gap: 10px; padding-bottom: 16px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+.sidebar-logo-icon { width: 32px; height: 32px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+.sidebar-logo-icon svg { width: 16px; height: 16px; }
+.sidebar-logo-text { font-size: 13px; font-weight: 600; letter-spacing: -0.01em; }
+.sidebar-logo-sub { font-size: 11px; color: var(--muted); }
+
+.filter-group { margin-bottom: 12px; }
+.filter-label { display: block; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--hint); margin-bottom: 5px; }
+.filter-group select, .filter-group input[type="text"], .filter-group input[type="number"] {
+  width: 100%; padding: 7px 9px; border: 1px solid var(--border-strong); border-radius: var(--r);
+  background: var(--surface2); color: var(--text); font-family: var(--sans); font-size: 12.5px;
+  outline: none; transition: border-color 0.15s; appearance: none; -webkit-appearance: none;
+}
+.filter-group select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2394a3b8'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 9px center; padding-right: 24px; }
+.filter-group select:focus, .filter-group input:focus { border-color: var(--accent); }
+
+.sidebar-divider { height: 1px; background: var(--border); margin: 12px 0; }
+.btn { width: 100%; padding: 8px; border-radius: var(--r); border: 1px solid var(--border-strong); font-family: var(--sans); font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.15s; margin-bottom: 6px; }
+.btn-ghost { background: transparent; color: var(--muted); }
+.btn-ghost:hover { background: var(--surface2); color: var(--text); }
+.btn-export { background: transparent; color: var(--accent); border-color: var(--accent); }
+.btn-export:hover { background: var(--info-bg); }
+
+.status-pill { margin-top: auto; padding-top: 16px; border-top: 1px solid var(--border); }
+.status-text { font-size: 11px; color: var(--hint); line-height: 1.5; }
+
+.main { padding: 24px; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+.page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.page-title { font-size: 20px; font-weight: 600; letter-spacing: -0.02em; }
+.page-sub { font-size: 13px; color: var(--muted); margin-top: 3px; }
+.period-badge { background: var(--accent); color: #fff; font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 99px; white-space: nowrap; flex-shrink: 0; margin-top: 4px; font-family: var(--mono); }
+
+.alerts-bar { background: var(--bad-bg); border: 1px solid var(--bad); border-radius: var(--r-lg); padding: 12px 16px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.alerts-bar.hidden { display: none; }
+.alert-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--bad); flex-shrink: 0; box-shadow: 0 0 8px var(--bad); }
+.alerts-title { font-size: 12.5px; font-weight: 600; color: var(--bad); }
+.alerts-list { font-size: 12px; color: var(--bad); flex: 1; }
+.alerts-toggle { font-size: 11px; color: var(--bad); cursor: pointer; text-decoration: underline; white-space: nowrap; }
+.alerts-detail { margin-top: 10px; border-top: 1px solid var(--bad); padding-top: 10px; display: none; width: 100%; }
+.alerts-detail.open { display: block; }
+.alerts-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.alerts-table th { color: var(--bad); font-weight: 600; text-align: left; padding: 4px 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+.alerts-table td { padding: 5px 6px; color: var(--bad); border-top: 1px solid rgba(255,255,255,0.08); }
+
+.kpi-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; }
+.kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 14px 16px; box-shadow: var(--shadow); position: relative; overflow: hidden; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.kpi-card:hover { transform: translateY(-2px); box-shadow: 0 12px 30px -5px rgba(0,0,0,0.6); }
+.kpi-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--accent); opacity: 0.3; }
+.kpi-card.kpi-ok::before { background: var(--ok); opacity: 0.7; }
+.kpi-card.kpi-bad::before { background: var(--bad); opacity: 0.7; }
+.kpi-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--hint); margin-bottom: 6px; }
+.kpi-value { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; font-family: var(--mono); line-height: 1; }
+.kpi-delta { font-size: 12px; font-weight: 500; margin-top: 5px; }
+.kpi-delta.ok { color: var(--ok); }
+.kpi-delta.bad { color: var(--bad); }
+.kpi-delta.neutral { color: var(--muted); }
+.kpi-note { font-size: 11px; color: var(--hint); margin-top: 3px; }
+.kpi-sparkline { height: 32px; margin-top: 8px; }
+
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 16px; box-shadow: var(--shadow); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); transition: box-shadow 0.3s; }
+.card:hover { box-shadow: 0 12px 30px -5px rgba(0,0,0,0.4); }
+.card-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.card-title-sub { font-size: 11px; font-weight: 400; color: var(--hint); }
+
+.data-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.data-table thead th { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--hint); padding: 0 8px 8px; text-align: left; border-bottom: 1px solid var(--border); }
+.data-table thead th:last-child { text-align: right; }
+.data-table tbody tr:hover { background: var(--surface2); }
+.data-table tbody td { padding: 7px 8px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: middle; }
+.data-table tbody td:last-child { text-align: right; font-family: var(--mono); }
+.data-table tbody td:first-child { color: var(--hint); font-size: 11px; font-family: var(--mono); }
+
+.delta-pill { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 99px; font-family: var(--mono); }
+.delta-ok { background: var(--ok-bg); color: var(--ok); }
+.delta-bad { background: var(--bad-bg); color: var(--bad); }
+.delta-na { background: var(--surface2); color: var(--muted); }
+
+.chart-box { height: 260px; }
+
+.rfm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 4px; }
+.rfm-seg { padding: 10px 12px; border-radius: var(--r); border: 1px solid var(--border); display: flex; flex-direction: column; gap: 2px; }
+.rfm-seg-name { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+.rfm-seg-count { font-size: 20px; font-weight: 600; font-family: var(--mono); }
+.rfm-champions { background: var(--info-bg); border-color: rgba(59,130,246,0.3); }
+.rfm-champions .rfm-seg-name, .rfm-champions .rfm-seg-count { color: var(--info); }
+.rfm-leales { background: var(--ok-bg); border-color: rgba(16,185,129,0.3); }
+.rfm-leales .rfm-seg-name, .rfm-leales .rfm-seg-count { color: var(--ok); }
+.rfm-riesgo { background: var(--bad-bg); border-color: rgba(244,63,94,0.3); }
+.rfm-riesgo .rfm-seg-name, .rfm-riesgo .rfm-seg-count { color: var(--bad); }
+.rfm-dormidos, .rfm-otros { background: var(--surface2); border-color: var(--border); }
+.rfm-dormidos .rfm-seg-name, .rfm-dormidos .rfm-seg-count,
+.rfm-otros .rfm-seg-name, .rfm-otros .rfm-seg-count { color: var(--muted); }
+
+.client-view-hidden { display: none; }
+.client-view-header { background: var(--info-bg); border: 1px solid rgba(59,130,246,0.2); border-radius: var(--r-lg); padding: 14px 16px; display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+.client-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; flex-shrink: 0; font-family: var(--mono); }
+.client-name { font-size: 15px; font-weight: 600; }
+.client-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.client-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+.client-stat { background: var(--surface2); border-radius: var(--r); padding: 10px 12px; }
+.client-stat-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--hint); margin-bottom: 4px; }
+.client-stat-value { font-size: 16px; font-weight: 600; font-family: var(--mono); }
+
+.tab-btn { background: transparent; border: none; color: var(--muted); padding: 8px 16px; font-family: var(--sans); font-size: 13px; font-weight: 500; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; margin-bottom: -1px; }
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+
+.compare-controls { display: flex; gap: 8px; align-items: center; }
+.compare-controls select { padding: 5px 22px 5px 8px; border-radius: var(--r); border: 1px solid var(--border-strong); background: var(--surface2); font-family: var(--sans); font-size: 12px; color: var(--text); appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2394a3b8'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 7px center; }
+
+.empty-state { text-align: center; padding: 28px 16px; color: var(--hint); font-size: 13px; }
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 99px; }
+
+@media print {
+  .sidebar { display: none; }
+  .layout { grid-template-columns: 1fr; }
+  .main { padding: 16px; }
+  .kpi-grid { grid-template-columns: repeat(3,1fr); }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 1100px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { height: auto; position: static; border-right: none; border-bottom: 1px solid var(--border); flex-direction: row; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+  .sidebar-logo { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+  .status-pill { display: none; }
+  .filter-group { margin-bottom: 0; min-width: 140px; flex: 1; }
+}
+@media (max-width: 860px) {
+  .kpi-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .grid-2 { grid-template-columns: 1fr; }
+  .client-stats { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 500px) {
+  .kpi-grid { grid-template-columns: 1fr; }
+  .main { padding: 12px; }
+}
+#login-overlay { position:fixed; inset:0; background:var(--bg); z-index:9999; display:flex; align-items:center; justify-content:center; }
+.login-card { width:320px; text-align:center; padding: 28px; }
+.login-input { width: 100%; padding: 10px 12px; border: 1px solid var(--border-strong); border-radius: var(--r); background: var(--surface2); color: var(--text); font-family: var(--sans); font-size: 13.5px; outline: none; transition: border-color 0.15s; margin-bottom: 12px; }
+.login-input:focus { border-color: var(--accent); }
+</style>
+</head>
+<body>
+<div id="login-overlay">
+  <div class="card login-card">
+    <div style="margin: 0 auto 16px; text-align: center;">
+      <img src="assets/logo_summa.png" alt="SUMMA" style="max-width: 180px; height: auto;" onerror="console.log('Falta logo_summa.png en la carpeta assets'); this.style.display='none'; this.nextElementSibling.style.display='block';">
+      <div style="display:none; text-align:center;">
+        <h2 style="font-size:24px; font-weight:700; letter-spacing: 2px;">SUMMA</h2>
+        <p class="sidebar-logo-sub" style="margin-top:4px;">Suministros Industriales</p>
+      </div>
+    </div>
+    <div style="height: 1px; background: var(--border); margin: 16px auto; width: 50%;"></div>
+    <p class="sidebar-logo-sub" style="margin-bottom:24px; color:var(--muted)">Inicia sesión para acceder al dashboard</p>
+    <input id="loginUser" class="login-input" type="text" placeholder="Usuario (ej. Sgutierrez)"/>
+    <input id="loginPass" class="login-input" type="password" placeholder="Contraseña"/>
+    <button class="btn btn-export" id="loginBtn" style="padding:10px; font-size:13px; margin-top:8px;">Ingresar</button>
+    <p id="loginError" style="color:var(--bad); font-size:12px; margin-top:12px; display:none;">Credenciales incorrectas o sin permisos.</p>
+  </div>
+</div>
+<div class="layout" id="main-layout" style="display:none;">
+
+<aside class="sidebar">
+  <div class="sidebar-logo" style="display:flex; flex-direction:column; align-items:flex-start; padding: 12px 0 16px;">
+    <img src="assets/logo_summa.png" alt="SUMMA" style="width: 140px; height: auto; margin-bottom: 8px;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+    <div style="display:none;">
+      <div class="sidebar-logo-text" style="font-size: 18px; letter-spacing: 1px;">SUMMA</div>
+      <div class="sidebar-logo-sub">Suministros Industriales</div>
+    </div>
+    <div class="sidebar-logo-sub" style="margin-top: 4px; border-top: 1px solid var(--border); padding-top: 8px; width: 100%; color: var(--accent);">
+      &#x25cf; Panel Comercial Activo
+    </div>
+  </div>
+
+  <div class="filter-group"><label class="filter-label">Año</label><select id="yearFilter"></select></div>
+  <div class="filter-group"><label class="filter-label">Mes</label><select id="monthFilter"></select></div>
+  <div class="filter-group"><label class="filter-label">Grupo inventario</label><select id="groupFilter"></select></div>
+  <div class="filter-group"><label class="filter-label">Cliente</label><select id="clientFilter"></select></div>
+  <div class="filter-group"><label class="filter-label">Buscar producto</label><input id="productFilter" type="text" placeholder='Ej: tubo 2"'/></div>
+  <div class="filter-group"><label class="filter-label">Valor mínimo por fila</label><input id="minValueFilter" type="number" step="1000" value=""/></div>
+  <div class="filter-group"><label class="filter-label">Top N</label>
+    <select id="topNFilter">
+      <option value="5">Top 5</option><option value="10" selected>Top 10</option>
+      <option value="15">Top 15</option><option value="20">Top 20</option>
+    </select>
+  </div>
+  <div class="filter-group"><label class="filter-label">Ventana tendencia</label>
+    <select id="trendWindowFilter">
+      <option value="6">Últimos 6 meses</option><option value="12" selected>Últimos 12 meses</option>
+      <option value="24">Últimos 24 meses</option><option value="0">Todo el histórico</option>
+    </select>
+  </div>
+
+  <div class="sidebar-divider"></div>
+  <button class="btn btn-export" id="exportExcelBtn">Exportar Excel</button>
+  <button class="btn btn-export" id="exportPdfBtn">Imprimir / PDF</button>
+  <button class="btn btn-ghost" id="resetFiltersBtn">Limpiar filtros</button>
+  <div class="sidebar-divider"></div>
+
+  <div class="filter-group"><label class="filter-label">CSV alternativo</label>
+    <input type="file" id="csvInput" accept=".csv" style="width:100%;font-size:11px;color:var(--muted)"/>
+  </div>
+
+  <div class="sidebar-divider"></div>
+  <div style="font-size:11px;color:var(--ok);text-align:center;font-weight:600;">Base de datos conectada</div>
+  <div style="font-size:10px;color:var(--muted);text-align:center;margin-top:4px;">Sesión segura de administrador</div>
+
+  <div class="status-pill">
+    <p id="status" class="status-text">Cargando…</p>
+    <p id="source" class="status-text" style="margin-top:4px"></p>
+  </div>
+</aside>
+
+<main class="main">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Dashboard Comercial SUMMA</h1>
+      <p class="page-sub">Comparación mensual · Proyección · Alertas automáticas · RFM</p>
+      <div style="margin-top: 8px; display: flex; gap: 12px; align-items: center;">
+        <span id="dataUpdated" style="font-size: 11px; color: var(--muted); font-family: var(--mono);">Datos hasta: —</span>
+      </div>
+    </div>
+    <div id="periodBadge" class="period-badge">—</div>
+  </div>
+
+  <div class="tabs-nav" style="display:flex; gap: 8px; border-bottom: 1px solid var(--border); margin: 16px 0 24px;">
+    <button id="tabBtnResumen" class="tab-btn active" onclick="switchTab('resumen')">Vista General</button>
+    <button id="tabBtnProductos" class="tab-btn" onclick="switchTab('productos')">Análisis de Productos</button>
+    <button id="tabBtnPredict" class="tab-btn" onclick="switchTab('predict')">Proyección de Demanda</button>
+    <button id="tabBtnSeasonality" class="tab-btn" onclick="switchTab('seasonality')">Patrones y Estacionalidad</button>
+    <button id="tabBtnIntelligence" class="tab-btn" onclick="switchTab('intelligence')">Inteligencia y Riesgos</button>
+    <button id="tabBtnAssistant" class="tab-btn" onclick="switchTab('assistant')"><strong style="color:var(--accent)">Asistente IA</strong></button>
+  </div>
+
+  <div id="viewResumen">
+
+  <div id="alertsBar" class="alerts-bar hidden">
+    <div class="alert-dot"></div>
+    <span class="alerts-title" id="alertsTitle">Alertas</span>
+    <span class="alerts-list" id="alertsSummary"></span>
+    <span class="alerts-toggle" id="alertsToggle" onclick="toggleAlerts()">Ver detalle</span>
+    <div class="alerts-detail" id="alertsDetail">
+      <div id="alertsTableWrap"></div>
+    </div>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="card kpi-card" id="kpiCardCurrent">
+      <div class="kpi-label">Ventas mes actual</div>
+      <div class="kpi-value" id="kpiCurrent">$0</div>
+      <div class="kpi-sparkline"><canvas id="sparkCurrent"></canvas></div>
+    </div>
+    <div class="card kpi-card" id="kpiCardPrev">
+      <div class="kpi-label">Mismo mes año pasado</div>
+      <div class="kpi-value" id="kpiPrevYear">$0</div>
+      <div class="kpi-sparkline"><canvas id="sparkPrev"></canvas></div>
+    </div>
+    <div class="card kpi-card" id="kpiCardYoy">
+      <div class="kpi-label">Variación YoY</div>
+      <div class="kpi-value" id="kpiYoy">—</div>
+      <div class="kpi-delta neutral" id="kpiYoyTag"></div>
+    </div>
+    <div class="card kpi-card">
+      <div class="kpi-label">Promedio ventas / semana</div>
+      <div class="kpi-value" id="kpiWeeklyAvg">$0</div>
+      <div class="kpi-note">Del mes seleccionado</div>
+    </div>
+    <div class="card kpi-card">
+      <div class="kpi-label">Proyección próxima semana</div>
+      <div class="kpi-value" id="kpiForecastWeek">$0</div>
+      <div class="kpi-note">Estimado con intervalo 95%</div>
+    </div>
+    <div class="card kpi-card">
+      <div class="kpi-label">Clientes activos mes</div>
+      <div class="kpi-value" id="kpiActiveClients">0</div>
+      <div class="kpi-delta neutral" id="kpiActiveClientsDelta"></div>
+    </div>
+    <div class="card kpi-card">
+      <div class="kpi-label">Clientes en riesgo</div>
+      <div class="kpi-value" id="kpiRiskClients">0</div>
+      <div class="kpi-note">Caída ≥30% en 3m recientes vs anteriores</div>
+    </div>
+  </div>
+
+  <div id="clientView" class="client-view-hidden">
+    <div class="client-view-header">
+      <div class="client-avatar" id="clientAvatar">??</div>
+      <div>
+        <div class="client-name" id="clientViewName">—</div>
+        <div class="client-meta" id="clientViewMeta">—</div>
+      </div>
+    </div>
+    <div class="client-stats">
+      <div class="client-stat"><div class="client-stat-label">Total histórico</div><div class="client-stat-value" id="cvTotal">$0</div></div>
+      <div class="client-stat"><div class="client-stat-label">Meses activo</div><div class="client-stat-value" id="cvFreq">0</div></div>
+      <div class="client-stat"><div class="client-stat-label">Segmento RFM</div><div class="client-stat-value" id="cvRfm">—</div></div>
+    </div>
+    <div class="card" style="margin-bottom:0">
+      <div class="card-title">Tendencia del cliente</div>
+      <div class="chart-box"><canvas id="clientTrendChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Top productos del mes <span class="card-title-sub" id="topMonthPeriod"></span></div>
+      <div id="topProductsMonth"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Productos en aceleración <span class="card-title-sub">vs mes anterior · mín. $50.000</span></div>
+      <div id="trendingProducts"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">
+      Tendencia mensual de ventas
+      <div class="compare-controls">
+        <label style="font-size:11px;color:var(--hint)">Comparar:</label>
+        <select id="compareYearSelect"><option value="">Sin comparación</option></select>
+      </div>
+    </div>
+    <div class="chart-box"><canvas id="monthlyTrend"></canvas></div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Segmentos RFM</div>
+      <div id="rfmSegments"></div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+        <span>Detalle de Clientes</span>
+        <select id="rfmTableSegment" onchange="window.updateRfmTableUI()" style="font-size:10px; padding:2px 4px; background:var(--surface2); color:var(--text); border:1px solid var(--border); border-radius:4px; cursor:pointer;" title="Filtrar clientes por segmento RFM">
+          <option value="priority">En Riesgo + Dormidos</option>
+          <option value="Champions">Champions</option>
+          <option value="Leales">Leales</option>
+          <option value="En riesgo">En riesgo</option>
+          <option value="Dormidos">Dormidos</option>
+          <option value="Hibernando">Hibernando</option>
+          <option value="Todos">Todos</option>
+        </select>
+      </div>
+      <div id="rfmPriorityTable"></div>
+    </div>
+  </div>
+  </div> <!-- fin viewResumen -->
+
+  <div id="viewProductos" style="display:none; flex-direction:column; gap:16px;">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Top Productos por Valor Bruto <span class="card-title-sub" id="prodValSub">Mes actual</span></div>
+        <div id="tableProdValor"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Top Productos por Cantidad <span class="card-title-sub" id="prodCantSub">Mes actual</span></div>
+        <div id="tableProdCant"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Rendimiento Detallado (Cantidades y Valor Bruto vs Mes Anterior y Año Pasado)</div>
+      <div id="tableProdPerf"></div>
+    </div>
+  </div>
+  
+  <div id="viewPredict" style="display:none; flex-direction:column; gap:16px;">
+    <div class="card">
+      <div class="card-title">Predicción de Ventas Mensuales (Siguiente Periodo) <span class="card-title-sub">Intervalo de confianza 95% basado en estacionalidad de seis meses</span></div>
+      <div id="tablePredict"></div>
+    </div>
+  </div>
+  
+  <div id="viewSeasonality" style="display:none; flex-direction:column; gap:16px;">
+    <div class="card">
+      <div class="card-title">Top Producto por Mes <span class="card-title-sub">Rendimiento Histórico Acumulado</span></div>
+      <div id="tableSeasonalityTopProducts"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Análisis de Patrones de Compra <span class="card-title-sub">Motor de Insights Estacionales</span></div>
+      <div id="patternsAnalysisContent"></div>
+    </div>
+  </div>
+
+  <div id="viewIntelligence" style="display:none; flex-direction:column; gap:16px;">
+    <div class="kpi-grid">
+      <div class="card kpi-card">
+        <div class="kpi-label">Dependencia de Top Cliente ("Ballena")</div>
+        <div class="kpi-value" id="kpiWhaleRisk">0%</div>
+        <div class="kpi-note" id="kpiWhaleNote">Ningún cliente supera el 30%</div>
+      </div>
+      <div class="card kpi-card">
+        <div class="kpi-label">Fugas por Descuentos</div>
+        <div class="kpi-value" id="kpiDiscounts">$0</div>
+        <div class="kpi-delta bad" id="kpiDiscountPct" style="margin-top:5px;display:inline-block;">0% de las ventas</div>
+      </div>
+      <div class="card kpi-card">
+        <div class="kpi-label">Inventario Congelado (Slow Movers)</div>
+        <div class="kpi-value" id="kpiSlowMovers">0</div>
+        <div class="kpi-note">Productos otrora vendidos, hoy parados</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Mapa de Calor y Fidelización <span class="card-title-sub">Recencia vertical vs Frecuencia horizontal (Tamaño: Recaudo)</span></div>
+        <div class="chart-box" style="height:350px;"><canvas id="clientBubbleChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Motor de Venta Cruzada (Cross-Selling) <span class="card-title-sub">Combos descubiertos automáticamente</span></div>
+        <div id="crossSellingContent"></div>
+      </div>
+    </div>
+    
+    <div class="card">
+       <div class="card-title">Radar de Inventario Congelado ("Slow Movers") <span class="card-title-sub">Artículos rentables sin movimiento en >90 días</span></div>
+       <div id="tableSlowMovers"></div>
+    </div>
+  </div>
+
+  <div id="viewAssistant" style="display:none; flex-direction:column; gap:16px;">
+    <div class="card" style="flex:1; display:flex; flex-direction:column; min-height: 500px; background:var(--bg); border: 1px solid var(--border-strong);">
+       <div style="padding:16px; border-bottom: 1px solid var(--border); display:flex; align-items:center; justify-content:space-between; gap:10px;">
+          <div style="display:flex; align-items:center; gap:10px;">
+             <div id="botStatusDot" style="width:12px; height:12px; border-radius:50%; background:var(--warn); box-shadow: 0 0 8px var(--warn); transition:0.3s all;"></div>
+             <div>
+               <h3 style="font-size:16px; font-weight:600; color:var(--text); margin:0;">Asistente SUMMA-Bot</h3>
+               <p style="font-size:11px; color:var(--hint); margin:2px 0 0 0;" id="botStatusText">Modo Analógico (Reglas estáticas)</p>
+             </div>
+          </div>
+          <button class="btn btn-ghost" style="padding:4px 10px; font-size:11px; border:1px solid var(--border-strong);" onclick="document.getElementById('apiConfigDiv').style.display = document.getElementById('apiConfigDiv').style.display==='none'?'block':'none'">Conectar API</button>
+       </div>
+       <div id="apiConfigDiv" style="display:none; padding:16px; background:var(--surface); border-bottom:1px solid var(--border-strong);">
+          <p style="font-size:12px; margin:0 0 8px 0;">Pega aquí tu <strong>API Key de Google Gemini</strong>. Esto activará el cerebro neuronal del chatbot al instante. <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--accent);">Obtener Gratis Aquí</a></p>
+          <div style="display:flex; gap:8px;">
+             <input type="password" id="geminiApiKeyInput" placeholder="AIzaSy..." style="flex:1; padding:8px 12px; background:var(--surface2); border:1px solid var(--border); border-radius:4px; color:var(--text); font-family:monospace;" onchange="saveApiKey(this.value)">
+             <button class="btn btn-export" onclick="document.getElementById('apiConfigDiv').style.display='none'">Ocultar</button>
+          </div>
+       </div>
+       <div id="chatHistory" style="flex:1; overflow-y:auto; padding:20px; display:flex; flex-direction:column; gap:16px; font-size:13px;">
+          <div style="align-self: flex-start; background:var(--surface2); padding:12px 16px; border-radius:12px; border-bottom-left-radius:2px; max-width:85%; line-height:1.6; border: 1px solid var(--border);">
+             <strong>¡Hola Jefe!</strong> Soy el asistente analítico integrado.<br>Sé que leer tantas gráficas puede cansar. Dime qué quieres saber desde tu teclado o presiona uno de los botones rápidos de abajo y yo masticaré los datos por ti.
+          </div>
+       </div>
+       <div style="padding:16px; border-top: 1px solid var(--border); background:var(--surface);">
+          <div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
+             <button class="btn btn-ghost" style="width:auto; padding:6px 12px; font-size:12px; border:1px solid var(--border-strong);" onclick="sendQuery('Resumen del mes')">Resumen general</button>
+             <button class="btn btn-ghost" style="width:auto; padding:6px 12px; font-size:12px; border:1px solid var(--border-strong);" onclick="sendQuery('¿Cuál es nuestro mejor cliente?')">Mejor cliente</button>
+             <button class="btn btn-ghost" style="width:auto; padding:6px 12px; font-size:12px; border:1px solid var(--border-strong);" onclick="sendQuery('Producto más vendido')">Producto Top</button>
+             <button class="btn btn-ghost" style="width:auto; padding:6px 12px; font-size:12px; border:1px solid var(--border-strong);" onclick="sendQuery('Alertas o riesgos urgentes')">Riesgos</button>
+          </div>
+          <div style="display:flex; gap:8px;">
+             <input type="text" id="chatInput" placeholder="Hazme cualquier consulta sobre tus ventas..." style="flex:1; background:var(--surface2); border:1px solid var(--border-strong); border-radius:var(--r); padding:12px 16px; color:var(--text); outline:none; font-family:var(--font);" onkeypress="if(event.key==='Enter') sendQuery(this.value)">
+             <button class="btn btn-export" style="width:auto; padding:0 24px; font-weight:bold;" onclick="sendQuery(document.getElementById('chatInput').value)">Preguntar</button>
+          </div>
+       </div>
+    </div>
+  </div>
+</main>
+</div>
+
+<script>
+const CSV_FILE = "../data/ventas_summa_final (1).csv";
+const MONTHS = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+const SUPABASE_DEFAULT_URL = ""; 
+const SUPABASE_DEFAULT_KEY = "";
+const SUPABASE_DEFAULT_TABLE = "VENTAS";
+const state = { rows:[], charts:{}, filtersBound:false, rfmLabeled:[], alertRows:[], activeTab: "resumen" };
+const $=id=>document.getElementById(id);
+function switchTab(t) {
+  state.activeTab = t;
+  $("tabBtnResumen").className = `tab-btn ${t==="resumen"?"active":""}`;
+  $("tabBtnProductos").className = `tab-btn ${t==="productos"?"active":""}`;
+  $("tabBtnPredict").className = `tab-btn ${t==="predict"?"active":""}`;
+  $("tabBtnSeasonality").className = `tab-btn ${t==="seasonality"?"active":""}`;
+  $("tabBtnIntelligence").className = `tab-btn ${t==="intelligence"?"active":""}`;
+  $("tabBtnAssistant").className = `tab-btn ${t==="assistant"?"active":""}`;
+  $("viewResumen").style.display = t === "resumen" ? "block" : "none";
+  $("viewProductos").style.display = t === "productos" ? "flex" : "none";
+  $("viewPredict").style.display = t === "predict" ? "flex" : "none";
+  $("viewSeasonality").style.display = t === "seasonality" ? "flex" : "none";
+  $("viewIntelligence").style.display = t === "intelligence" ? "flex" : "none";
+  $("viewAssistant").style.display = t === "assistant" ? "flex" : "none";
+}
+const filters = {
+  year:$("yearFilter"), month:$("monthFilter"), group:$("groupFilter"),
+  client:$("clientFilter"), product:$("productFilter"),
+  minValue:$("minValueFilter"), topN:$("topNFilter"), trendWindow:$("trendWindowFilter")
+};
+const supabase = {
+  url: { value: SUPABASE_DEFAULT_URL },
+  key: { value: SUPABASE_DEFAULT_KEY },
+  table: { value: SUPABASE_DEFAULT_TABLE }
+};
+
+Chart.defaults.font.family="'DM Sans',sans-serif";
+Chart.defaults.color="#b0ada4";
+Chart.defaults.borderColor="rgba(255,255,255,0.06)";
+
+function normalizeKey(s){return String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"");}
+function safeNum(v){const n=Number(v);return Number.isFinite(n)?n:0;}
+function money(v){return Number(v||0).toLocaleString("es-CO",{style:"currency",currency:"COP",maximumFractionDigits:0});}
+function num(v){return Number(v||0).toLocaleString("es-CO",{maximumFractionDigits:0});}
+function pct(v){if(!Number.isFinite(v))return"N/A";return(v>=0?"+":"")+v.toFixed(1)+"%";}
+function monthIdx(m){return MONTHS.indexOf(String(m||"").trim());}
+function initials(n){return String(n||"?").split(/\s+/).map(w=>w[0]).join("").slice(0,2).toUpperCase();}
+function pick(d,...aa){for(const a of aa){const v=d[normalizeKey(a)];if(v!==undefined&&v!==null&&String(v).trim()!=="")return v;}return"";}
+
+function cleanProductName(name){
+  let x=String(name||"Sin producto").trim();
+  x=x.replace(/\s+/g," ");
+  // Unifica decimales para evitar productos duplicados por coma/punto
+  x=x.replace(/(\d),(\d)/g,"$1.$2");
+  // Corrige espacios alrededor de comillas y parentesis
+  x=x.replace(/\s+"/g,'"');
+  x=x.replace(/"\s+/g,'" ');
+  x=x.replace(/\(\s+/g,"(").replace(/\s+\)/g,")");
+  x=x.replace(/\s+x\s+/gi," x ");
+  return x.replace(/\s+/g," ").trim();
+}
+
+function mapRow(r){
+  const d={};
+  Object.entries(r||{}).forEach(([k,v])=>{d[normalizeKey(k)]=v;});
+  let mes=String(pick(d,"mes","month")||"").trim();
+  if(/^\d+$/.test(mes))mes=MONTHS[Number(mes)-1]||"";
+  const anio=Number(pick(d,"anio","año","year"));
+  const idx=monthIdx(mes);
+  // Usar último día del mes para fecha máxima más precisa
+  const lastDayOfMonth=(anio,month)=>new Date(anio,month+1,0).getDate();
+  return{
+    cliente:String(pick(d,"cliente","customer","nombre_cliente","razon_social")||"Sin cliente").trim(),
+    producto:cleanProductName(pick(d,"producto","product","nombre_producto")||"Sin producto"),
+    grupo:String(pick(d,"grupo","category","grupo_inventario","categoria")||"Sin grupo").trim(),
+    valor_bruto:safeNum(pick(d,"valor_bruto","gross_value","valor")),
+    cantidad:safeNum(pick(d,"cantidad","qty","cantidad_vendida","cantidadvendida")),
+    anio,mes,mesIndex:idx,
+    date:(anio&&idx>=0)?new Date(anio,idx,lastDayOfMonth(anio,idx)):null
+  };
+}
+
+function fillSelect(el,values,all="Todos"){
+  el.innerHTML=`<option value="__all__">${all}</option>`;
+  values.forEach(v=>{const o=document.createElement("option");o.value=v;o.textContent=v;el.appendChild(o);});
+}
+
+function initFilters(rows){
+  const years=[...new Set(rows.map(r=>r.anio).filter(Boolean))].sort((a,b)=>b-a);
+  const months=[...new Set(rows.map(r=>r.mes).filter(Boolean))].sort((a,b)=>monthIdx(a)-monthIdx(b));
+  const groups=[...new Set(rows.map(r=>r.grupo).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  const clients=[...new Set(rows.map(r=>r.cliente).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  fillSelect(filters.year,years); fillSelect(filters.month,months);
+  fillSelect(filters.group,groups); fillSelect(filters.client,clients);
+  if(years.length)filters.year.value=String(years[0]);
+  const cm=new Date().getMonth();
+  if(months.length)filters.month.value=months[cm]||months[months.length-1];
+  filters.topN.value="10"; filters.trendWindow.value="12";
+  filters.product.value=""; filters.minValue.value="";
+  const cs=$("compareYearSelect");
+  cs.innerHTML=`<option value="">Sin comparación</option>`;
+  years.forEach(y=>{const o=document.createElement("option");o.value=y;o.textContent=y;cs.appendChild(o);});
+  cs.addEventListener("change",renderMain);
+}
+
+function rowsByGroup(){
+  const needle=String(filters.product.value||"").trim().toLowerCase();
+  const minT=filters.minValue.value;
+  const minV=minT===""?-Infinity:safeNum(minT);
+  return state.rows.filter(r=>{
+    const g=filters.group.value==="__all__"||r.grupo===filters.group.value;
+    const c=filters.client.value==="__all__"||r.cliente===filters.client.value;
+    const p=!needle||r.producto.toLowerCase().includes(needle);
+    return g&&c&&p&&r.valor_bruto>=minV;
+  });
+}
+
+// FIX: RFM usa solo filtro de grupo (no de cliente), para no sesgar los segmentos
+function rowsForRfm(){
+  const minT=filters.minValue.value;
+  const minV=minT===""?-Infinity:safeNum(minT);
+  return state.rows.filter(r=>{
+    const g=filters.group.value==="__all__"||r.grupo===filters.group.value;
+    return g&&r.valor_bruto>=minV;
+  });
+}
+
+function monthlySeries(rows){
+  const m=new Map();
+  rows.forEach(r=>{
+    if(!r.date)return;
+    const k=`${r.anio}-${String(r.mesIndex+1).padStart(2,"0")}`;
+    const cur=m.get(k)||{key:k,label:`${r.mes} ${r.anio}`,date:r.date,value:0};
+    cur.value+=r.valor_bruto;
+    m.set(k,cur);
+  });
+  return[...m.values()].sort((a,b)=>a.key.localeCompare(b.key));
+}
+
+function getFocusPeriod(rows){
+  const s=monthlySeries(rows);
+  if(!s.length)return null;
+  const yr=filters.year.value!=="__all__"?Number(filters.year.value):null;
+  const mo=filters.month.value!=="__all__"?monthIdx(filters.month.value):null;
+  let c=null;
+  if(yr!==null&&mo!==null)c=s.find(x=>x.date.getFullYear()===yr&&x.date.getMonth()===mo)||null;
+  if(!c&&yr!==null){const fy=s.filter(x=>x.date.getFullYear()===yr);c=fy[fy.length-1]||null;}
+  if(!c&&mo!==null){const fm=s.filter(x=>x.date.getMonth()===mo);c=fm[fm.length-1]||null;}
+  return c||s[s.length-1];
+}
+
+function rowsForPeriod(rows,year,mi){return rows.filter(r=>r.anio===year&&r.mesIndex===mi);}
+function aggBy(rows,key){
+  const m=new Map();
+  rows.forEach(r=>m.set(r[key],(m.get(r[key])||0)+r.valor_bruto));
+  return[...m.entries()].map(([k,v])=>({key:k,value:v}));
+}
+
+// FIX FORECAST: SE se convierte a escala semanal con sqrt(4.33), no /4.33
+function forecastNextWeek(rows,maxDate){
+  let s=monthlySeries(rows);
+  if(maxDate)s=s.filter(x=>x.date<=maxDate);
+  s=s.slice(-6);
+  if(s.length<2)return{forecast:NaN,lower:NaN,upper:NaN};
+  const y=s.map(x=>x.value),n=y.length;
+  const xs=[...Array(n).keys()];
+  const xM=xs.reduce((a,b)=>a+b,0)/n,yM=y.reduce((a,b)=>a+b,0)/n;
+  const num=xs.reduce((a,x,i)=>a+(x-xM)*(y[i]-yM),0);
+  const den=xs.reduce((a,x)=>a+(x-xM)**2,0)||1;
+  const slope=num/den;
+  const blended=y[n-1]*0.65+(yM+slope*n)*0.35;
+  const fw=blended/4.33;
+  const res=y.map((v,i)=>v-(yM+slope*i));
+  const va=res.reduce((a,r)=>a+r*r,0)/(n-2||1);
+  const se=Math.sqrt(va*(1+1/n+(n-xM)**2/den));
+  // Escala correcta a semanal
+  const seW=se/Math.sqrt(4.33);
+  const margin=1.96*seW;
+  const wVals=y.map(v=>v/4.33).filter(v=>v>0).sort((a,b)=>a-b);
+  const p20=wVals[Math.floor(wVals.length*0.2)]||0;
+  return{forecast:fw,lower:Math.max(p20,fw-margin,fw*0.4),upper:Math.max(fw+margin,fw*1.05)};
+}
+
+// FIX RISK: usa focusDate en vez del máximo global del dataset
+function calcRiskClients(rows,focusDate){
+  const v=rows.filter(r=>r.date&&r.date<=focusDate);
+  if(!v.length)return 0;
+  const rS=new Date(focusDate.getFullYear(),focusDate.getMonth()-2,1);
+  const bS=new Date(focusDate.getFullYear(),focusDate.getMonth()-5,1);
+  const bE=new Date(focusDate.getFullYear(),focusDate.getMonth()-3,1);
+  const agg=sub=>{const m=new Map();sub.forEach(r=>m.set(r.cliente,(m.get(r.cliente)||0)+r.valor_bruto));return m;};
+  const rec=agg(v.filter(r=>r.date>=rS));
+  const base=agg(v.filter(r=>r.date>=bS&&r.date<bE));
+  let risk=0;
+  base.forEach((val,c)=>{if(val>0&&(((rec.get(c)||0)/val)-1)*100<=-30)risk++;});
+  return risk;
+}
+
+// FIX RFM: recibe rows ya filtrados por grupo (no por cliente)
+function computeRfm(rows,focusDate){
+  const v=rows.filter(r=>r.date&&r.date<=focusDate);
+  if(!v.length)return{segments:[],priority:[],labeled:[]};
+  const byC=new Map();
+  v.forEach(r=>{
+    const c=byC.get(r.cliente)||{cliente:r.cliente,lastDate:r.date,freqSet:new Set(),monetary:0};
+    if(r.date>c.lastDate)c.lastDate=r.date;
+    c.freqSet.add(`${r.anio}-${r.mesIndex}`);
+    c.monetary+=r.valor_bruto;
+    byC.set(r.cliente,c);
+  });
+  const rfm=[...byC.values()].map(c=>({
+    cliente:c.cliente,
+    recencyMonths:(focusDate.getFullYear()-c.lastDate.getFullYear())*12+(focusDate.getMonth()-c.lastDate.getMonth()),
+    frequency:c.freqSet.size,monetary:c.monetary
+  }));
+  const sq=(vals,rev=false)=>{
+    const so=[...vals].sort((a,b)=>a-b);
+    const q=p=>so[Math.floor((so.length-1)*p)]??so[0]??0;
+    const [q1,q2,q3,q4]=[q(0.2),q(0.4),q(0.6),q(0.8)];
+    return v=>{let s=v<=q1?1:v<=q2?2:v<=q3?3:v<=q4?4:5;return rev?6-s:s;};
+  };
+  const rS=sq(rfm.map(x=>x.recencyMonths),true);
+  const fS=sq(rfm.map(x=>x.frequency));
+  const mS=sq(rfm.map(x=>x.monetary));
+  const labeled=rfm.map(x=>{
+    const R=rS(x.recencyMonths),F=fS(x.frequency),M=mS(x.monetary);
+    let seg="Hibernando";
+    if(R>=4&&F>=4&&M>=4)seg="Champions";
+    else if(R>=4&&F>=3)seg="Leales";
+    else if(R<=2&&M>=3)seg="En riesgo";
+    else if(R<=2&&F<=2)seg="Dormidos";
+    return{...x,R,F,M,segmento:seg};
+  });
+  const sm=new Map();
+  labeled.forEach(x=>sm.set(x.segmento,(sm.get(x.segmento)||0)+1));
+  const segments=[...sm.entries()].map(([segmento,clientes])=>({segmento,clientes})).sort((a,b)=>b.clientes-a.clientes);
+  const priority=labeled.filter(x=>x.segmento==="En riesgo"||x.segmento==="Dormidos").sort((a,b)=>b.monetary-a.monetary);
+  return{segments,priority,labeled};
+}
+
+function calcAlerts(rows,focusDate){
+  const v=rows.filter(r=>r.date&&r.date<=focusDate);
+  if(!v.length)return[];
+  const cy=focusDate.getFullYear(),cm=focusDate.getMonth();
+  const py=cm===0?cy-1:cy,pm=cm===0?11:cm-1;
+  const agg=(rs,key)=>{const m=new Map();rs.forEach(r=>m.set(r[key],(m.get(r[key])||0)+r.valor_bruto));return m;};
+  const curC=agg(v.filter(r=>r.anio===cy&&r.mesIndex===cm),"cliente");
+  const preC=agg(v.filter(r=>r.anio===py&&r.mesIndex===pm),"cliente");
+  const pyC=agg(v.filter(r=>r.anio===cy-1&&r.mesIndex===cm),"cliente");
+  const curP=agg(v.filter(r=>r.anio===cy&&r.mesIndex===cm),"producto");
+  const preP=agg(v.filter(r=>r.anio===py&&r.mesIndex===pm),"producto");
+  const alerts=[];
+  preC.forEach((val,c)=>{
+    if(val<=0)return;
+    const cur=curC.get(c)||0,chg=((cur/val)-1)*100;
+    if(chg<=-20){const pyV=pyC.get(c)||0;alerts.push({tipo:"Cliente",nombre:c,cambioMoM:chg,cambioYoY:pyV>0?((cur/pyV)-1)*100:null,valorActual:cur});}
+  });
+  preP.forEach((val,p)=>{
+    if(val<100000)return;
+    const cur=curP.get(p)||0,chg=((cur/val)-1)*100;
+    if(chg<=-20)alerts.push({tipo:"Producto",nombre:p,cambioMoM:chg,cambioYoY:null,valorActual:cur});
+  });
+  return alerts.sort((a,b)=>a.cambioMoM-b.cambioMoM);
+}
+
+function toggleAlerts(){
+  const d=$("alertsDetail"),t=$("alertsToggle");
+  t.textContent=d.classList.toggle("open")?"Ocultar":"Ver detalle";
+}
+
+function renderAlerts(alerts){
+  const bar=$("alertsBar");
+  if(!alerts.length){bar.classList.add("hidden");return;}
+  bar.classList.remove("hidden");
+  $("alertsTitle").textContent=`${alerts.length} alerta${alerts.length>1?"s":""} de caída`;
+  $("alertsSummary").textContent=alerts.slice(0,3).map(a=>a.nombre.split(" ").slice(0,2).join(" ")).join(", ")+(alerts.length>3?` y ${alerts.length-3} más`:"");
+  const rows=alerts.map(a=>`<tr>
+    <td>${a.tipo}</td><td>${a.nombre}</td>
+    <td><span class="delta-pill delta-bad">${pct(a.cambioMoM)}</span></td>
+    <td>${a.cambioYoY!==null?`<span class="delta-pill ${a.cambioYoY>=0?"delta-ok":"delta-bad"}">${pct(a.cambioYoY)}</span>`:"—"}</td>
+    <td style="font-family:var(--mono)">${money(a.valorActual)}</td>
+  </tr>`).join("");
+  $("alertsTableWrap").innerHTML=`<table class="alerts-table"><thead><tr><th>Tipo</th><th>Nombre</th><th>MoM</th><th>YoY</th><th>Valor actual</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function sparkline(id,data,color){
+  const ex=state.charts[id];if(ex)ex.destroy();
+  const ctx=$(id);if(!ctx||!data.length)return;
+  state.charts[id]=new Chart(ctx,{type:"line",data:{labels:data.map((_,i)=>i),datasets:[{data,borderColor:color,borderWidth:1.5,pointRadius:0,fill:true,backgroundColor:color+"18",tension:0.35}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{enabled:false}},scales:{x:{display:false},y:{display:false}},animation:false}});
+}
+
+function renderTable(id,headers,rows,empty){
+  const el=$(id);
+  if(!rows.length){el.innerHTML=`<div class="empty-state"><p>${empty||"Sin datos."}</p></div>`;return;}
+  el.innerHTML=`<table class="data-table"><thead><tr>${headers.map(h=>`<th>${h}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(x=>`<td>${x}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+}
+
+function renderClientView(name,allRows,focusDate){
+  const cv=$("clientView");
+  if(!name||name==="__all__"){cv.className="client-view-hidden";return;}
+  cv.className="";
+  $("clientAvatar").textContent=initials(name);
+  $("clientViewName").textContent=name;
+  const cr=allRows.filter(r=>r.cliente===name&&r.date&&r.date<=focusDate);
+  $("cvTotal").textContent=money(cr.reduce((a,r)=>a+r.valor_bruto,0));
+  $("cvFreq").textContent=new Set(cr.map(r=>`${r.anio}-${r.mesIndex}`)).size;
+  const rfmI=state.rfmLabeled.find(x=>x.cliente===name);
+  $("cvRfm").textContent=rfmI?rfmI.segmento:"—";
+  $("clientViewMeta").textContent=rfmI?`Recencia: ${rfmI.recencyMonths}m · R:${rfmI.R} F:${rfmI.F} M:${rfmI.M}`:"";
+  const s=monthlySeries(cr);
+  const ex=state.charts["clientTrend"];if(ex)ex.destroy();
+  const ctx=$("clientTrendChart");
+  if(ctx&&s.length){
+    state.charts["clientTrend"]=new Chart(ctx,{type:"bar",data:{labels:s.map(x=>x.label),datasets:[{label:"Ventas",data:s.map(x=>x.value),backgroundColor:"rgba(56,189,248,0.75)",borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>money(c.raw)}}},scales:{y:{ticks:{callback:v=>num(v)}}}}});
+  }
+}
+
+window.updateRfmTableUI = function() {
+  if(!state.rfmLabeled) return;
+  const s = document.getElementById("rfmTableSegment").value;
+  let list = state.rfmLabeled;
+  if(s === "priority") list = list.filter(x=>["En riesgo","Dormidos"].includes(x.segmento));
+  else if(s !== "Todos") list = list.filter(x=>x.segmento === s);
+  
+  list = list.sort((a,b)=>b.monetary-a.monetary).slice(0, parseInt(filters.topN.value)*2);
+  
+  renderTable("rfmPriorityTable",["Cliente","Segmento","Rec. (m)","Frec.","Monetario"],
+    list.map(x=>[x.cliente,`<span class="delta-pill ${x.segmento==="En riesgo"?"delta-bad":x.segmento==="Champions"||x.segmento==="Leales"?"delta-ok":"delta-na"}">${x.segmento}</span>`,num(x.recencyMonths),num(x.frequency),money(x.monetary)]),"Sin clientes.");
+};
+
+function renderMain(){
+  const gr=rowsByGroup();
+  const rfmR=rowsForRfm();
+  const topN=parseInt(filters.topN.value,10)||10;
+  const tw=parseInt(filters.trendWindow.value,10)||12;
+  const focus=getFocusPeriod(gr)||getFocusPeriod(state.rows);
+  if(!focus){$("status").textContent="Sin datos con los filtros actuales.";return;}
+  const focusYear=focus.date.getFullYear();
+  const focusMonthIdx=focus.date.getMonth();
+  const focusMonthName=MONTHS[focusMonthIdx]||"";
+
+  const fRows=rowsForPeriod(gr,focusYear,focusMonthIdx);
+  const pyRows=rowsForPeriod(gr,focusYear-1,focusMonthIdx);
+  const curV=fRows.reduce((a,r)=>a+r.valor_bruto,0);
+  const prevV=pyRows.reduce((a,r)=>a+r.valor_bruto,0);
+  const yoy=prevV>0?((curV/prevV)-1)*100:NaN;
+
+  $("periodBadge").textContent=`${focusMonthName} ${focusYear}`;
+  $("topMonthPeriod").textContent=`${focusMonthName} ${focusYear}`;
+  $("kpiCurrent").textContent=money(curV);
+  $("kpiPrevYear").textContent=money(prevV);
+  $("kpiYoy").textContent=pct(yoy);
+  
+  if ($("kpiWeeklyAvg")) {
+    $("kpiWeeklyAvg").textContent = money(curV / 4.333);
+  }
+
+  const yt=$("kpiYoyTag"),yc=$("kpiCardYoy");
+  if(Number.isFinite(yoy)){
+    yt.textContent=yoy>=0?"▲ Mejora vs año pasado":"▼ Caída vs año pasado";
+    yt.className=`kpi-delta ${yoy>=0?"ok":"bad"}`;
+    yc.className=`card kpi-card ${yoy>=0?"kpi-ok":"kpi-bad"}`;
+  }else{yt.textContent="Sin dato base";yt.className="kpi-delta neutral";}
+
+  const fc=forecastNextWeek(gr,focus.date);
+  $("kpiForecastWeek").textContent=Number.isFinite(fc.forecast)?`${money(fc.forecast)} (${money(fc.lower)}–${money(fc.upper)})`:"N/A";
+
+  const activeCli=new Set(fRows.map(r=>r.cliente)).size;
+  const prevActi=new Set(pyRows.map(r=>r.cliente)).size;
+  $("kpiActiveClients").textContent=num(activeCli);
+  const cd=$("kpiActiveClientsDelta");
+  if(prevActi>0){const d=activeCli-prevActi;cd.textContent=(d>=0?"▲ ":"▼ ")+`${Math.abs(d)} vs mismo mes año pasado`;cd.className=`kpi-delta ${d>=0?"ok":"bad"}`;}
+
+  $("kpiRiskClients").textContent=num(calcRiskClients(rfmR,focus.date));
+
+  const until=gr.filter(r=>r.date&&r.date<=focus.date);
+  sparkline("sparkCurrent",monthlySeries(until).slice(-6).map(x=>x.value),"#38bdf8");
+  const untilPY=gr.filter(r=>r.date&&r.date<=new Date(focus.date.getFullYear()-1,focus.date.getMonth(),28));
+  sparkline("sparkPrev",monthlySeries(untilPY).slice(-6).map(x=>x.value),"#94a3b8");
+
+  const topP=aggBy(fRows,"producto").sort((a,b)=>b.value-a.value).slice(0,topN);
+  renderTable("topProductsMonth",["#","Producto","Valor bruto"],topP.map((r,i)=>[`${i+1}`,r.key,money(r.value)]),"Sin productos.");
+
+  const pmDate=new Date(focus.date.getFullYear(),focus.date.getMonth()-1,1);
+  const pmRows=rowsForPeriod(gr,pmDate.getFullYear(),pmDate.getMonth());
+  const curA=new Map(aggBy(fRows,"producto").map(x=>[x.key,x.value]));
+  const preA=new Map(aggBy(pmRows,"producto").map(x=>[x.key,x.value]));
+  const MIN_V=50000;
+  const trend=[...curA.keys()].filter(k=>curA.get(k)>=MIN_V).map(k=>{
+    const c=curA.get(k),p=preA.get(k)||0,ch=p>0?((c/p)-1)*100:NaN;
+    return{producto:k,actual:c,pct:ch};
+  }).filter(x=>Number.isFinite(x.pct)).sort((a,b)=>b.pct-a.pct).slice(0,topN);
+  renderTable("trendingProducts",["#","Producto","Mes actual","Var. MoM"],
+    trend.map((r,i)=>[`${i+1}`,r.producto,money(r.actual),`<span class="delta-pill ${r.pct>=0?"delta-ok":"delta-bad"}">${pct(r.pct)}</span>`]),"Sin datos.");
+
+  let ms=monthlySeries(until);
+  if(tw>0)ms=ms.slice(-tw);
+  const ex=state.charts["monthlyTrend"];if(ex)ex.destroy();
+  const cmpYr=parseInt($("compareYearSelect").value)||null;
+  const datasets=[{label:`Ventas ${focusYear}`,data:ms.map(x=>x.value),borderColor:"#38bdf8",backgroundColor:"rgba(56,189,248,0.15)",fill:true,tension:0.25,borderWidth:2,pointRadius:3,pointBackgroundColor:"#38bdf8"}];
+  if(cmpYr){
+    const cmpRows=state.rows.filter(r=>{const g=filters.group.value==="__all__"||r.grupo===filters.group.value;return g&&r.anio===cmpYr&&r.date;});
+    const cmpS=monthlySeries(cmpRows);
+    if(cmpS.length)datasets.push({label:`Ventas ${cmpYr}`,data:cmpS.map(x=>x.value),borderColor:"#ec4899",borderDash:[5,3],backgroundColor:"transparent",fill:false,tension:0.25,borderWidth:1.5,pointRadius:2,pointBackgroundColor:"#ec4899"});
+  }
+  state.charts["monthlyTrend"]=new Chart($("monthlyTrend"),{type:"line",data:{labels:ms.map(x=>x.label),datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:datasets.length>1,position:"top",labels:{font:{size:12},boxWidth:16}},tooltip:{callbacks:{label:c=>money(c.raw)}}},scales:{y:{ticks:{callback:v=>num(v)}}}}});
+
+  const rfm=computeRfm(rfmR,focus.date);
+  state.rfmLabeled=rfm.labeled;
+  const rfmCol={Champions:"rfm-champions",Leales:"rfm-leales","En riesgo":"rfm-riesgo",Dormidos:"rfm-dormidos",Hibernando:"rfm-otros"};
+  $("rfmSegments").innerHTML=`<div class="rfm-grid">${rfm.segments.map(s=>`<div class="rfm-seg ${rfmCol[s.segmento]||"rfm-otros"}"><span class="rfm-seg-name">${s.segmento}</span><span class="rfm-seg-count">${num(s.clientes)}</span></div>`).join("")}</div>`;
+  window.updateRfmTableUI();
+
+  const alerts=calcAlerts(rfmR,focus.date);
+  state.alertRows=alerts;
+  renderAlerts(alerts);
+
+  const sel=filters.client.value==="__all__"?null:filters.client.value;
+  renderClientView(sel,state.rows,focus.date);
+
+  // Lógica Análisis de Productos
+  $("prodValSub").textContent = `${focusMonthName} ${focusYear}`;
+  $("prodCantSub").textContent = `${focusMonthName} ${focusYear}`;
+  
+  const aggProdC = new Map();
+  const aggProdV = new Map();
+  fRows.forEach(r => {
+    aggProdC.set(r.producto, (aggProdC.get(r.producto)||0) + Math.abs(r.cantidad||0));
+    aggProdV.set(r.producto, (aggProdV.get(r.producto)||0) + r.valor_bruto);
+  });
+  const topVal = [...aggProdV.entries()].map(([k,v])=>({k,v})).sort((a,b)=>b.v-a.v).slice(0,topN);
+  const topC = [...aggProdC.entries()].map(([k,v])=>({k,v})).sort((a,b)=>b.v-a.v).slice(0,topN);
+  
+  renderTable("tableProdValor", ["#", "Producto", "Valor Bruto"], topVal.map((r,i)=>[`${i+1}`, r.k, money(r.v)]),"Sin productos");
+  renderTable("tableProdCant", ["#", "Producto", "Cantidad"], topC.map((r,i)=>[`${i+1}`, r.k, num(r.v)]),"Sin productos");
+
+  const pMap = new Map();
+  fRows.forEach(r => { if(!pMap.has(r.producto)) pMap.set(r.producto,{v:0,c:0}); const o=pMap.get(r.producto); o.v+=r.valor_bruto; o.c+=Math.abs(r.cantidad||0); });
+  const pmM = new Map();
+  pmRows.forEach(r => { if(!pmM.has(r.producto)) pmM.set(r.producto,{v:0,c:0}); const o=pmM.get(r.producto); o.v+=r.valor_bruto; o.c+=Math.abs(r.cantidad||0); });
+  const pyM = new Map();
+  pyRows.forEach(r => { if(!pyM.has(r.producto)) pyM.set(r.producto,{v:0,c:0}); const o=pyM.get(r.producto); o.v+=r.valor_bruto; o.c+=Math.abs(r.cantidad||0); });
+
+  const perfList = [...pMap.keys()].map(k => {
+    const act = pMap.get(k);
+    const pmVC = pmM.has(k)?pmM.get(k):{v:0,c:0}; const pyVC = pyM.has(k)?pyM.get(k):{v:0,c:0};
+    const momV = pmVC.v>0?((act.v/pmVC.v)-1)*100:NaN; const yoyV = pyVC.v>0?((act.v/pyVC.v)-1)*100:NaN;
+    const momC = pmVC.c>0?((act.c/pmVC.c)-1)*100:NaN; const yoyC = pyVC.c>0?((act.c/pyVC.c)-1)*100:NaN;
+    return {p:k, v:act.v, c:act.c, momV, yoyV, momC, yoyC};
+  }).sort((a,b)=>b.v-a.v).slice(0, topN*2);
+
+  const dp=(v)=>Number.isFinite(v)?`<span class="delta-pill ${v>=0?"delta-ok":"delta-bad"}">${pct(v)}</span>`:`<span class="delta-pill delta-na">N/A</span>`;
+  renderTable("tableProdPerf", ["Producto", "Cant.", "MoM (C)", "YoY (C)", "Valor Bruto", "MoM ($)", "YoY ($)"], 
+    perfList.map(r => [r.p, num(r.c), dp(r.momC), dp(r.yoyC), money(r.v), dp(r.momV), dp(r.yoyV)]), "Sin productos");
+
+  // Lógica Predicción
+  const pList = [...aggProdV.entries()].sort((a,b)=>b[1]-a[1]).slice(0, topN).map(x=>x[0]);
+  const predData = pList.map(prod => {
+    const series = [];
+    for(let i=0; i<6; i++) {
+       const fd = new Date(focus.date.getFullYear(), focus.date.getMonth()-i, 1);
+       if(fd > new Date()) continue;
+       const pr = rowsForPeriod(gr, fd.getFullYear(), fd.getMonth()).filter(r => r.producto === prod);
+       series.push(pr.reduce((a,x)=>a+x.valor_bruto,0));
+    }
+    const vals = series.filter(x=>x>0);
+    if(vals.length < 2) return { p:prod, min:NaN, avg:NaN, max:NaN };
+    const avg = vals.reduce((a,b)=>a+b,0)/vals.length;
+    const std = Math.sqrt(vals.reduce((a,b)=>a+Math.pow(b-avg,2),0)/(vals.length-1));
+    return { p:prod, min:Math.max(0, avg - 1.96*std), avg, max: avg + 1.96*std };
+  });
+
+  renderTable("tablePredict", ["Producto Top", "Escenario Pesimista (Min)", "Venta Promedio Esperada", "Escenario Optimista (Max)"],
+    predData.map(r => [
+      r.p, 
+      Number.isFinite(r.min) ? money(r.min) : `<span class="delta-pill delta-na">N/A</span>`,
+      Number.isFinite(r.avg) ? `<strong style="color:var(--accent);">${money(r.avg)}</strong>` : `<span class="delta-pill delta-na">N/A</span>`,
+      Number.isFinite(r.max) ? money(r.max) : `<span class="delta-pill delta-na">N/A</span>`
+    ]), "Sin datos históricos suficientes (Mínimo 2 meses requeridos)"
+  );
+
+  $("status").textContent=`Foco: ${focusMonthName} ${focusYear} · ${sel||"Todos los clientes"} · ${num(fRows.length)} filas`;
+  
+  renderSeasonality();
+}
+
+function renderSeasonality() {
+  const gr = rowsByGroup();
+  const monthlyData = Array.from({length: 12}, () => ({ value: 0, qty: 0, productsValue: {}, productsQty: {} }));
+  
+  gr.forEach(r => {
+    if(r.mesIndex !== undefined && r.mesIndex >= 0 && r.mesIndex < 12) {
+      const m = monthlyData[r.mesIndex];
+      m.value += r.valor_bruto;
+      m.qty += Math.abs(r.cantidad || 0);
+      
+      m.productsValue[r.producto] = (m.productsValue[r.producto] || 0) + r.valor_bruto;
+      m.productsQty[r.producto] = (m.productsQty[r.producto] || 0) + Math.abs(r.cantidad || 0);
+    }
+  });
+  
+  const rows = [];
+  let bestMonthIndexValue = -1, maxMonthValue = -1;
+  let bestMonthIndexQty = -1, maxMonthQty = -1;
+
+  for(let i=0; i<12; i++) {
+    const m = monthlyData[i];
+    if(m.value > 0) {
+      const topProdValue = Object.keys(m.productsValue).reduce((a, b) => m.productsValue[a] > m.productsValue[b] ? a : b, "");
+      const topProdQty = Object.keys(m.productsQty).reduce((a, b) => m.productsQty[a] > m.productsQty[b] ? a : b, "");
+      
+      rows.push([
+        MONTHS[i],
+        money(m.value),
+        num(m.qty),
+        topProdValue,
+        topProdQty
+      ]);
+
+      if (m.value > maxMonthValue) { maxMonthValue = m.value; bestMonthIndexValue = i; }
+      if (m.qty > maxMonthQty) { maxMonthQty = m.qty; bestMonthIndexQty = i; }
+    }
+  }
+
+  renderTable("tableSeasonalityTopProducts", ["Mes", "Valor Bruto Mensual", "Unidades Mensuales", "Producto Estrella (Recaudo)", "Producto Estrella (Volumen)"], rows, "Cargando datos estacionales...");
+
+  let patternsHtml = "";
+  if (bestMonthIndexValue !== -1) {
+    patternsHtml += `<div style="padding:14px; border-left: 4px solid var(--accent); background:var(--surface2); margin-bottom:12px; border-radius:6px; box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+      <h4 style="margin-bottom:6px; font-size:14px; font-weight:600; color:var(--text);">🏆 Mes de Mayor Facturación</h4>
+      <p style="font-size:13px; color:var(--text); line-height:1.4;">El mes de <b>${MONTHS[bestMonthIndexValue]}</b> lidera el flujo de caja histórico con <b>${money(maxMonthValue)}</b> recaudados. Las campañas comerciales rinden mayor fruto este mes.</p>
+    </div>`;
+  }
+  if (bestMonthIndexQty !== -1 && bestMonthIndexQty !== bestMonthIndexValue) {
+    patternsHtml += `<div style="padding:14px; border-left: 4px solid var(--ok); background:var(--surface2); margin-bottom:12px; border-radius:6px; box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+      <h4 style="margin-bottom:6px; font-size:14px; font-weight:600; color:var(--text);">📦 Mes de Mayor Volumen Logístico</h4>
+      <p style="font-size:13px; color:var(--text); line-height:1.4;">El mes de <b>${MONTHS[bestMonthIndexQty]}</b> exige más despacho y bodegaje, moviendo un tope de <b>${num(maxMonthQty)} unidades</b> físicas.</p>
+    </div>`;
+  }
+  
+  const activeMonths = monthlyData.filter(m => m.value > 0);
+  if(activeMonths.length >= 3) {
+     const avgMonthly = activeMonths.reduce((a,b)=>a+b.value, 0) / activeMonths.length;
+     if (maxMonthValue > avgMonthly * 1.6) {
+        patternsHtml += `<div style="padding:14px; border-left: 4px solid var(--warn); background:var(--surface2); margin-bottom:12px; border-radius:6px; box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+          <h4 style="margin-bottom:6px; font-size:14px; font-weight:600; color:var(--warn);">⚠️ Alta Sensibilidad Estacional</h4>
+          <p style="font-size:13px; color:var(--text); line-height:1.4;">Las ventas de <b>${MONTHS[bestMonthIndexValue]}</b> superan dramáticamente el promedio ordinario de ${money(avgMonthly)}. El negocio cuenta con fuertes picos cíclicos.</p>
+        </div>`;
+     } else {
+        patternsHtml += `<div style="padding:14px; border-left: 4px solid var(--info); background:var(--surface2); margin-bottom:12px; border-radius:6px; box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+          <h4 style="margin-bottom:6px; font-size:14px; font-weight:600; color:var(--info);">📈 Estabilidad Transaccional</h4>
+          <p style="font-size:13px; color:var(--text); line-height:1.4;">No hay dependencia absoluta de un solo mes. El recaudo máximo fluye con balance respecto a la media (${money(avgMonthly)}).</p>
+        </div>`;
+     }
+     
+     const top3 = [...activeMonths].sort((a,b) => b.value - a.value).slice(0,3);
+     const pct = (top3.reduce((a,b)=>a+b.value, 0) / activeMonths.reduce((a,b)=>a+b.value, 0) * 100).toFixed(1);
+     patternsHtml += `<div style="padding:14px; border-left: 4px solid var(--accent2); background:var(--surface2); margin-bottom:12px; border-radius:6px; box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+       <h4 style="margin-bottom:6px; font-size:14px; font-weight:600; color:var(--accent2);">📊 Pareto de Concentración</h4>
+       <p style="font-size:13px; color:var(--text); line-height:1.4;">La llamada "Cosecha Comercial": Los 3 mejores meses sostienen históricamente el <b>${pct}%</b> de todos los ingresos analizados.</p>
+     </div>`;
+  }
+
+  $("patternsAnalysisContent").innerHTML = patternsHtml || "<div class='empty-state'>Insuficientes meses para generar un motor de patrones sólido.</div>";
+
+  renderIntelligence();
+}
+
+function renderIntelligence() {
+  const gr = rowsByGroup();
+  
+  let totalGross = 0;
+  let totalDiscount = 0;
+  gr.forEach(r => {
+    totalGross += r.valor_bruto;
+    totalDiscount += safeNum(pick(r,"descuento","discount"));
+  });
+  $("kpiDiscounts").textContent = money(totalDiscount);
+  const discountPct = totalGross > 0 ? (totalDiscount / totalGross) * 100 : 0;
+  $("kpiDiscountPct").textContent = `${discountPct.toFixed(1)}% margen cedido`;
+  $("kpiDiscountPct").className = `kpi-delta ${discountPct > 5 ? "delta-bad" : "delta-ok"}`;
+
+  const clientAgg = new Map();
+  gr.forEach(r => {
+    clientAgg.set(r.cliente, (clientAgg.get(r.cliente)||0) + r.valor_bruto);
+  });
+  const sortedClients = [...clientAgg.entries()].sort((a,b) => b[1]-a[1]);
+  if(sortedClients.length > 0 && totalGross > 0) {
+    const topClient = sortedClients[0];
+    const topPct = (topClient[1] / totalGross) * 100;
+    $("kpiWhaleRisk").textContent = `${topPct.toFixed(1)}%`;
+    $("kpiWhaleNote").textContent = topPct >= 30 ? `⚠️ Peligro: Dependes de ${topClient[0].substring(0,18)}...` : `Saludable: Tu mejor cliente no monopoliza la empresa.`;
+    $("kpiWhaleRisk").style.color = topPct >= 30 ? "var(--bad)" : "var(--text)";
+  } else {
+    $("kpiWhaleRisk").textContent = "0%";
+    $("kpiWhaleNote").textContent = "Sin datos";
+  }
+
+  const focus = getFocusPeriod(gr) || getFocusPeriod(state.rows);
+  let slowMoversData = [];
+  if (focus) {
+    const focusDate = focus.date;
+    const threemonthsAgo = new Date(focusDate.getFullYear(), focusDate.getMonth()-3, 1);
+    const prodLastSold = new Map();
+    const prodGrossHistory = new Map();
+    gr.forEach(r => {
+       if(!r.date) return;
+       const p = r.producto;
+       prodGrossHistory.set(p, (prodGrossHistory.get(p)||0) + r.valor_bruto);
+       if(!prodLastSold.has(p) || r.date > prodLastSold.get(p)) {
+          prodLastSold.set(p, r.date);
+       }
+    });
+
+    [...prodLastSold.keys()].forEach(p => {
+       const lastD = prodLastSold.get(p);
+       const histV = prodGrossHistory.get(p);
+       if (lastD < threemonthsAgo && histV > 500000) {
+          const monthsIdle = (focusDate.getFullYear() - lastD.getFullYear())*12 + (focusDate.getMonth() - lastD.getMonth());
+          slowMoversData.push({ p, lastD, histV, monthsIdle });
+       }
+    });
+    slowMoversData = slowMoversData.sort((a,b) => b.histV - a.histV);
+  }
+  
+  $("kpiSlowMovers").textContent = num(slowMoversData.length);
+  renderTable("tableSlowMovers", ["Producto Estancado", "Meses inactivo", "Dinero Histórico que Movía", "Última Venta Registrada"], 
+    slowMoversData.map(r => [r.p, `<span class="delta-pill delta-bad">${r.monthsIdle} meses</span>`, money(r.histV), `${MONTHS[r.lastD.getMonth()]} ${r.lastD.getFullYear()}`]),
+    "¡Excelente! Tu inventario está sano, sin productos top abandonados."
+  );
+
+  const baskets = new Map();
+  gr.forEach(r => {
+    const bKey = `${normalizeKey(r.cliente)}|${r.anio}|${r.mesIndex}`;
+    if(!baskets.has(bKey)) baskets.set(bKey, new Set());
+    baskets.get(bKey).add(r.producto);
+  });
+  
+  const pairs = new Map();
+  for (let products of baskets.values()) {
+     const arr = Array.from(products).sort();
+     for(let i=0; i<arr.length; i++) {
+        for(let j=i+1; j<arr.length; j++) {
+           const pairKey = `${arr[i]} ||| ${arr[j]}`;
+           pairs.set(pairKey, (pairs.get(pairKey)||0) + 1);
+        }
+     }
+  }
+  
+  const topPairs = [...pairs.entries()].sort((a,b)=>b[1]-a[1]).slice(0,6);
+  let csHtml = "";
+  if(topPairs.length > 0 && topPairs[0][1] > 1) {
+     csHtml = `<table class="data-table"><thead><tr><th>Si compran esto...</th><th>También se llevan esto...</th><th>Aciertos</th></tr></thead><tbody>`;
+     topPairs.forEach(p => {
+        if(p[1] <= 1) return;
+        const parts = p[0].split(" ||| ");
+        csHtml += `<tr><td>${parts[0]}</td><td><strong style="color:var(--accent)">+ ${parts[1]}</strong></td><td><span class="delta-pill delta-ok">${p[1]} combos</span></td></tr>`;
+     });
+     csHtml += `</tbody></table>`;
+  } else {
+     csHtml = `<div class="empty-state">No se detectaron compras conjuntas consistentes.</div>`;
+  }
+  $("crossSellingContent").innerHTML = csHtml;
+
+  if(focus && state.rfmLabeled && state.rfmLabeled.length > 0) {
+     const rfm = state.rfmLabeled;
+     const ctx = $("clientBubbleChart");
+     const ex = state.charts["bubbleChart"]; if(ex) ex.destroy();
+     
+     // Mapeo de colores estéticos según segmento
+     const colorMap = {
+        "Champions": { bg: "rgba(16, 185, 129, 0.65)", border: "#059669" }, // Verde brillante
+        "Leales": { bg: "rgba(52, 211, 153, 0.55)", border: "#10b981" }, // Verde esmeralda
+        "En riesgo": { bg: "rgba(244, 63, 94, 0.65)", border: "#e11d48" }, // Rojo alerta
+        "Dormidos": { bg: "rgba(251, 146, 60, 0.5)", border: "#ea580c" }, // Naranja
+        "Hibernando": { bg: "rgba(148, 163, 184, 0.3)", border: "#64748b" } // Gris apagado
+     };
+     
+     // Para reducir el "amontonamiento", hacemos burbujas más pequeñas y mostramos solo clientes que han aportado algo significativo (> $100k)
+     const filteredRfm = rfm.filter(c => c.monetary > 100000);
+
+     const scatterData = filteredRfm.map(c => {
+        const style = colorMap[c.segmento] || colorMap["Hibernando"];
+        return {
+           x: c.frequency,
+           y: c.recencyMonths,
+           // Radio logarítmico para no sobredimensionar clientes promedio, max 25px
+           r: Math.max(3, Math.min(25, Math.log10(c.monetary || 1) * 2 - 6)),
+           label: c.cliente,
+           money: c.monetary,
+           seg: c.segmento,
+           backgroundColor: style.bg,
+           borderColor: style.border
+        };
+     });
+     
+     state.charts["bubbleChart"] = new Chart(ctx, {
+        type: 'bubble',
+        data: {
+           datasets: [{
+              label: 'Clientes',
+              data: scatterData,
+              borderWidth: 1.5,
+              // Asignar el array de colores por punto
+              backgroundColor: scatterData.map(d => d.backgroundColor),
+              borderColor: scatterData.map(d => d.borderColor)
+           }]
+        },
+        options: {
+           responsive: true,
+           maintainAspectRatio: false,
+           plugins: {
+              legend: { display: false },
+              tooltip: {
+                 callbacks: {
+                    label: (ctx) => {
+                       const d = ctx.raw;
+                       return `[${d.seg}] ${d.label.substring(0,30)}... | Frec: ${d.x} | Rec: ${d.y}m | Total: ${money(d.money)}`;
+                    }
+                 }
+              }
+           },
+           scales: {
+              y: { title: { display: true, text: 'Meses sin comprar (A menor valor, más fidelidad)', color: '#94a3b8' }, reverse: true, min: -1 },
+              x: { title: { display: true, text: 'Meses activos (Frecuencia)', color: '#94a3b8' }, min: 0 }
+           }
+        }
+     });
+  }
+}
+
+window.saveApiKey = function(val) {
+   localStorage.setItem('SUMMA_GEMINI_KEY', val.trim());
+   window.checkApiStatus();
+};
+
+window.checkApiStatus = function() {
+   const val = localStorage.getItem('SUMMA_GEMINI_KEY');
+   const dot = $("botStatusDot");
+   const txt = $("botStatusText");
+   if(dot && txt) {
+      if(val && val.trim()!=="") {
+         dot.style.background = "var(--ok)";
+         dot.style.boxShadow = "0 0 8px var(--ok)";
+         txt.textContent = "Modo Neural (IA Conectada)";
+      } else {
+         dot.style.background = "var(--warn)";
+         dot.style.boxShadow = "0 0 8px var(--warn)";
+         txt.textContent = "Modo Analógico (Reglas estáticas)";
+      }
+      if($("geminiApiKeyInput")) $("geminiApiKeyInput").value = val || "";
+   }
+};
+document.addEventListener("DOMContentLoaded", () => setTimeout(()=>window.checkApiStatus(), 500));
+
+window.sendQuery = async function(q) {
+  if(!q || !q.trim()) return;
+  const chat = $("chatHistory");
+  chat.innerHTML += `<div style="align-self: flex-end; background:var(--accent); color:#fff; padding:10px 14px; border-radius:12px; border-bottom-right-radius:2px; max-width:80%; line-height:1.5;">${q}</div>`;
+  $("chatInput").value = "";
+  
+  const key = localStorage.getItem('SUMMA_GEMINI_KEY');
+  if(key && key.trim() !== "") {
+     const indId = "typing_" + Date.now();
+     chat.innerHTML += `<div id="${indId}" style="align-self: flex-start; background:transparent; padding:0; margin:0; font-size:12px; color:var(--accent); font-style:italic;">Consultando red neural... 🧠</div>`;
+     chat.scrollTop = chat.scrollHeight;
+     try {
+       const reply = await queryGeminiApi(q, key);
+       const indicator = document.getElementById(indId); if(indicator) indicator.remove();
+       replyChat(chat, reply);
+     } catch(e) {
+       const indicator = document.getElementById(indId); if(indicator) indicator.remove();
+       replyChat(chat, "⚠️ Ocurrió un error conectando con Gemini: " + e.message + " (Revisa que tu llave sea correcta y no tenga espacios).");
+     }
+  } else {
+     setTimeout(() => {
+        const reply = processQueryToAssistant(q);
+        replyChat(chat, reply);
+     }, 400);
+  }
+};
+
+function replyChat(chat, text) {
+  chat.innerHTML += `<div style="align-self: flex-start; background:var(--surface2); padding:10px 14px; border-radius:12px; border-bottom-left-radius:2px; max-width:85%; line-height:1.6; border: 1px solid var(--border);">${text}</div>`;
+  chat.scrollTop = chat.scrollHeight;
+}
+
+async function queryGeminiApi(q, apiKey) {
+  const fRows = rowsByGroup();
+  if(fRows.length === 0) return "Tu filtro actual no tiene datos. Selecciona fechas con movimientos para analizar.";
+  
+  const curV = fRows.reduce((a,r)=>a+r.valor_bruto,0);
+  const cAgg = new Map();
+  const pAgg = new Map();
+  fRows.forEach(r => {
+     cAgg.set(r.cliente, (cAgg.get(r.cliente)||0) + r.valor_bruto);
+     pAgg.set(r.producto, (pAgg.get(r.producto)||0) + r.valor_bruto);
+  });
+  const topCli = [...cAgg.entries()].sort((a,b)=>b[1]-a[1]);
+  const topProd = [...pAgg.entries()].sort((a,b)=>b[1]-a[1]);
+  
+  const ctx = `Resumen actual de ventas (FILTRO APLICADO EN EL DASHBOARD):
+- Total vendido (Dinero bruto): $${money(curV)}
+- N° de clientes con compras activas: ${cAgg.size} clientes
+- El TOP 1 mejor cliente: ${topCli.length ? topCli[0][0] : 'Ninguno'} con facturación de $${topCli.length ? money(topCli[0][1]) : 0}
+- El TOP 1 mejor producto: ${topProd.length ? topProd[0][0] : 'Ninguno'} con facturación de $${topProd.length ? money(topProd[0][1]) : 0}
+- Total alertas urgentes de clientes en pérdida de actividad: ${state.alertRows ? state.alertRows.length : 0}`;
+  
+  const payload = {
+    contents: [{ parts: [{text: `Eres SUMMA-Bot, analista directivo experto de datos de la empresa SUMMA integrando insights en el Dashboard Ejecutivo. Eres muy agudo, inteligente y profesional pero no pesado.
+Lee en un segundo este bloque oculto de datos: ${ctx}.
+Pregunta real del director: "${q}".
+Responde directo basándote en los datos inyectados, redactando algo que lo guíe estrátegicamente. Usa Markdown moderno con **negritas** resaltando lo importante y usando line breaks HTML <br> si necesitas espacio o listas breves. ¡No dejes que se note que te pasaron el prompt inicial!`}] }]
+  };
+  
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
+    method:"POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(payload)
+  });
+  const json = await res.json();
+  if(json.error) throw new Error(json.error.message);
+  
+  let formatted = json.candidates[0].content.parts[0].text;
+  formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+  formatted = formatted.replace(/\n\n/g, '<br/><br/>').replace(/\n/g, '<br/>');
+  return formatted;
+}
+
+function processQueryToAssistant(q) {
+  const query = q.toLowerCase();
+  const fRows = rowsByGroup(); // Respetar filtro actual en lugar de todo
+  if(fRows.length === 0) return "Tu filtro actual no tiene datos. Selecciona unas fechas con movimientos para poder responderte.";
+  
+  const curV = fRows.reduce((a,r)=>a+r.valor_bruto,0);
+  
+  if(query.includes("resumen") || query.includes("ventas") || query.includes("hoy") || query.includes("total")) {
+     return `Para este filtro ingresamos un total de <b>${money(curV)}</b> a través de <b>${new Set(fRows.map(r=>r.cliente)).size} clientes</b> diferentes. Todo transcurre en orden.`;
+  }
+  else if(query.includes("cliente") || query.includes("mejor")) {
+     const cAgg = new Map();
+     fRows.forEach(r => cAgg.set(r.cliente, (cAgg.get(r.cliente)||0) + r.valor_bruto));
+     const top = [...cAgg.entries()].sort((a,b)=>b[1]-a[1]);
+     if(top.length > 0) return `Nuestro peso pesado en este filtro es <b>${top[0][0]}</b>. Solito te depositó <b>${money(top[0][1])}</b> a la caja. ¡Tócales la puerta para agradecer!`;
+     return "Mmm, al parecer no se le ha facturado a nadie acá.";
+  }
+  else if(query.includes("alerta") || query.includes("urgente") || query.includes("riesgo") || query.includes("peligro")) {
+     const risks = state.alertRows || [];
+     if(risks.length > 0) return `🚨 Cuidado jefe: Tenemos <b>${risks.length} clientes en picada libre</b> respecto al ciclo pasado. Agárrate fuerte con <b>${risks[0].nombre}</b> que sus compras cayeron un ${Math.abs(risks[0].cambioMoM).toFixed(1)}%.`;
+     return "Todo tranquilo. No hay incendios que apagar; tus clientes están comprando a ritmo normal o subiendo. ¡Paz mental!";
+  }
+  else if(query.includes("producto") || query.includes("top") || query.includes("estrella")) {
+     const pAgg = new Map();
+     fRows.forEach(r => pAgg.set(r.producto, (pAgg.get(r.producto)||0) + r.valor_bruto));
+     const top = [...pAgg.entries()].sort((a,b)=>b[1]-a[1]);
+     if(top.length > 0) return `El producto estrella es indiscutiblemente <b>${top[0][0]}</b>, que movió unos brutales <b>${money(top[0][1])}</b> en ventas. ¿Hay stock asegurado?`;
+     return "No se ha movido inventario en esta sección.";
+  }
+  
+  return "Perdona, esa pregunta parece de finanzas corporativas nivel Dios. Trata con las dudas base (ventas, alertas, clientes, productos) o pícale a los botones rápidos. ¡Estoy puliendo mis circuitos día a día!";
+}
+
+function exportExcel(){
+  if(!window.XLSX){alert("XLSX no disponible.");return;}
+  const wb=XLSX.utils.book_new();
+  const grab=(tableId,headers)=>{const rows=[];document.querySelectorAll(`#${tableId} tr`).forEach((tr,i)=>{if(i===0)return;rows.push([...tr.querySelectorAll("td")].map(td=>td.textContent.trim()));});return rows.length?[headers,...rows]:null;};
+  const tp=grab("topProductsMonth",["#","Producto","Valor bruto"]);
+  if(tp)XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(tp),"Top Productos");
+  const rp=grab("rfmPriorityTable",["Cliente","Segmento","Recencia","Frecuencia","Monetario"]);
+  if(rp)XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rp),"RFM Prioritarios");
+  if(state.alertRows.length){
+    const ar=state.alertRows.map(a=>[a.tipo,a.nombre,pct(a.cambioMoM),a.cambioYoY!==null?pct(a.cambioYoY):"—",money(a.valorActual)]);
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([["Tipo","Nombre","MoM","YoY","Valor actual"],...ar]),"Alertas");
+  }
+  XLSX.writeFile(wb,`dashboard_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+function bindFilters(){
+  if(state.filtersBound)return;
+  Object.entries(filters).forEach(([n,f])=>f.addEventListener(n==="product"||n==="minValue"?"input":"change",renderMain));
+  $("resetFiltersBtn").addEventListener("click",()=>{
+    const years=[...new Set(state.rows.map(r=>r.anio).filter(Boolean))].sort((a,b)=>b-a);
+    const months=[...new Set(state.rows.map(r=>r.mes).filter(Boolean))].sort((a,b)=>monthIdx(a)-monthIdx(b));
+    filters.year.value=years.length?String(years[0]):"__all__";
+    filters.month.value=months[new Date().getMonth()]||months[months.length-1]||"__all__";
+    filters.group.value="__all__"; filters.client.value="__all__";
+    filters.product.value=""; filters.minValue.value="";
+    filters.topN.value="10"; filters.trendWindow.value="12";
+    $("compareYearSelect").value="";
+    renderMain();
+  });
+  $("exportExcelBtn").addEventListener("click",exportExcel);
+  $("exportPdfBtn").addEventListener("click",()=>window.print());
+  state.filtersBound=true;
+}
+
+function ingestRows(raw){
+  const rows=raw.map(mapRow).filter(r=>r.anio&&r.mesIndex>=0);
+  state.rows=rows;
+  initFilters(rows);
+  bindFilters();
+  renderMain();
+  
+  // Mostrar fecha hasta la cual tenemos datos
+  // Usamos la fecha de hoy como referencia (23 de marzo) ya que ese es el día de integración
+  const hoy=new Date();
+  const mes=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"][hoy.getMonth()];
+  const dia=hoy.getDate();
+  const anio=hoy.getFullYear();
+  $("dataUpdated").textContent=`Datos hasta: ${dia} de ${mes} de ${anio}`;
+}
+
+function saveSupabaseConfig(){}
+async function fetchSupabaseRows(){
+  const url = String(supabase.url.value || "").trim().replace(/\/+$/,"");
+  const key = String(supabase.key.value || "").trim();
+  const table = String(supabase.table.value || "").trim();
+  if(!url || !key || !table) throw new Error("Completa URL, API key y tabla de Supabase.");
+
+  saveSupabaseConfig();
+
+  const limit = 1000;
+  let offset = 0;
+  let allRows = [];
+
+  while(true){
+    const endpoint = `${url}/rest/v1/${encodeURIComponent(table)}?select=*&limit=${limit}&offset=${offset}&order=id.asc`;
+    const response = await fetch(endpoint, {
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`
+      },
+      cache: "no-store"
+    });
+    if(!response.ok){
+      const text = await response.text();
+      throw new Error(`Supabase error ${response.status}: ${text || "sin detalle"}`);
+    }
+    const chunk = await response.json();
+    if(!Array.isArray(chunk)) throw new Error("Respuesta no valida de Supabase.");
+    allRows = allRows.concat(chunk);
+    if(chunk.length < limit) break;
+    offset += limit;
+  }
+
+  return allRows;
+}
+
+async function connectSupabase(){
+  try{
+    $("status").textContent = "Conectando a Supabase...";
+    const rawRows = await fetchSupabaseRows();
+    ingestRows(rawRows);
+    const table = String(supabase.table.value || "").trim();
+    $("source").textContent = `Fuente: Supabase (${table})`;
+    $("status").textContent = `Conectado a Supabase · ${num(rawRows.length)} filas`;
+  }catch(e){
+    $("status").textContent = `Error Supabase: ${e.message || "No fue posible conectar."} · usando CSV`;
+    await loadCsvDefault();
+  }
+}
+
+async function loadCsvDefault(){
+  try{
+    const url=`${encodeURI(CSV_FILE)}?t=${Date.now()}`;
+    const r=await fetch(url,{cache:"no-store"});
+    if(!r.ok)throw new Error();
+    const txt=await r.text();
+    const p=Papa.parse(txt,{header:true,skipEmptyLines:true});
+    ingestRows(p.data||[]);
+    $("source").textContent=`Fuente: ${CSV_FILE}`;
+  }catch(e){
+    $("status").textContent="Carga el CSV con el selector.";
+    $("source").textContent="Sin fuente activa.";
+  }
+}
+
+// Removed old buttons
+
+$("csvInput").addEventListener("change",ev=>{
+  const f=ev.target.files&&ev.target.files[0];
+  if(!f)return;
+  const r=new FileReader();
+  r.onload=e=>{const p=Papa.parse(String(e.target.result||""),{header:true,skipEmptyLines:true});ingestRows(p.data||[]);$("source").textContent=`Fuente: ${f.name}`;};
+  r.readAsText(f);
+});
+
+async function handleLogin() {
+  const user = $("loginUser").value.trim();
+  const pass = $("loginPass").value;
+  const btn = $("loginBtn");
+  if(!user || !pass) return;
+
+  // Bypass para Portafolio (Invitado)
+  if(user.toLowerCase() === "invitado" && pass === "Invitado123") {
+    $("login-overlay").style.display = "none";
+    $("main-layout").style.display = "";
+    loadCsvDefault(); // Carga el dataset local
+    return;
+  }
+  
+  const anonKey = SUPABASE_DEFAULT_KEY.trim();
+  if(!anonKey) {
+    alert("ADVERTENCIA: Debes pegar tu llave ANON KEY en el archivo dashboard_ejecutivo_v2.html en la variable SUPABASE_DEFAULT_KEY");
+    return;
+  }
+  
+  btn.textContent = "Verificando...";
+  btn.disabled = true;
+  $("loginError").style.display = "none";
+  
+  try {
+    const res = await fetch(`${SUPABASE_DEFAULT_URL}/rest/v1/USUARIOS?usuario=eq.${user}&select=*`, {
+      headers: { "apikey": anonKey, "Authorization": `Bearer ${anonKey}` }
+    });
+    if(!res.ok) throw new Error("Error de red");
+    const data = await res.json();
+    const u = data[0];
+    
+    // Validar contraseña y rol admin
+    if(u && u.contraseña === pass && u.rol === "admin") {
+      $("login-overlay").style.display = "none";
+      $("main-layout").style.display = "";
+      connectSupabase(); 
+    } else {
+      throw new Error("Credenciales inválidas");
+    }
+  } catch(e) {
+    $("loginError").style.display = "block";
+    btn.textContent = "Ingresar";
+    btn.disabled = false;
+  }
+}
+
+$("loginBtn").addEventListener("click", handleLogin);
+$("loginPass").addEventListener("keyup", e => e.key === "Enter" && handleLogin());
+
+</script>
+</body>
+</html>
